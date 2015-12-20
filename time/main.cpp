@@ -3,11 +3,15 @@
 #include <windows.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#define _GNU_SOURCE /* for tm_gmtoff and tm_zone */
+
+#include <stdio.h>
+#include <time.h>
 
 using namespace sf;
 
-const int WINDOW_W = 400;
-const int WINDOW_H = 400;
+const int WINDOW_W = 450;
+const int WINDOW_H = 450;
 const int CENTRE_WINDOW_X = WINDOW_W / 2;
 const int CENTRE_WINDOW_Y = WINDOW_H / 2;
 const int AMOUNT_POINTS = 60;
@@ -25,7 +29,7 @@ struct Shapes {
 	CircleShape point;
 }watch;
 
-void DrawPoints(RenderWindow & window, Shapes & watch, Vector2f(&coordinatePoints)[AMOUNT_POINTS])
+void DrawPoints(RenderWindow & window, Shapes & watch, Vector2f(&coordinatePoints)[AMOUNT_POINTS], Text & text)
 {
 	Vector2f coordinatePoint;
 	for (int i = 0; i < AMOUNT_POINTS; i++) {
@@ -36,17 +40,24 @@ void DrawPoints(RenderWindow & window, Shapes & watch, Vector2f(&coordinatePoint
 
 	for (int i = 0; i < AMOUNT_POINTS; i++) {
 		if (i % 15 == 0) {
-			watch.point.setRadius(6);
-			watch.point.setOrigin(6 / 2, 6 / 2);
-			watch.point.setFillColor(Color::White);
+			if (i == 45)
+				text.setString("XII");
+			else if (i == 0)
+				text.setString("III");
+			else if (i == 15)
+				text.setString("VI");
+			else if (i == 30)
+				text.setString("IX");
+			text.setPosition(coordinatePoints[i].x - 15, coordinatePoints[i].y - 15);
+			window.draw(text);
 		}
 		else {
 			watch.point.setRadius(1);
 			watch.point.setOrigin(1 / 2, 1 / 2);
 			watch.point.setFillColor(Color::White);
+			watch.point.setPosition(coordinatePoints[i].x, coordinatePoints[i].y);
+			window.draw(watch.point);
 		}
-		watch.point.setPosition(coordinatePoints[i].x, coordinatePoints[i].y);
-		window.draw(watch.point);
 	}
 }
 
@@ -74,7 +85,12 @@ void TimeIsOn(RenderWindow &window)
 {
 	PositionArrows();
 	Vector2f coordinatePoints[AMOUNT_POINTS];
-	SYSTEMTIME sysTime;
+	time_t t = time(NULL);
+	struct tm timeinfo;
+	Font font;
+	font.loadFromFile("font.ttf");
+	Text text("", font, 25);
+	text.setColor(Color::White);
 
 	while (window.isOpen())
 	{
@@ -85,18 +101,18 @@ void TimeIsOn(RenderWindow &window)
 				window.close();
 		}
 
-		GetSystemTime(&sysTime);
-		watch.secArrow.setRotation(float(sysTime.wSecond * 360 / 60 - 180));
-		watch.minArrow.setRotation(float(sysTime.wMinute * 360 / 60 + sysTime.wSecond * 6 / 60 - 180));
-		watch.hourArrow.setRotation(float((sysTime.wHour + 3) * 30 + (sysTime.wMinute * 30 / 60) - 180));
-		std::cout << sysTime.wHour + 3 << ":" << sysTime.wMinute << ":" << sysTime.wSecond << "\n";
+		localtime_s(&timeinfo, &t);
+		t = time(NULL);
+		watch.secArrow.setRotation(float(timeinfo.tm_sec * 360 / 60 - 180));
+		watch.minArrow.setRotation(float(timeinfo.tm_min * 360 / 60 + timeinfo.tm_sec * 6 / 60 - 180));
+		watch.hourArrow.setRotation(float(timeinfo.tm_hour * 30 + (timeinfo.tm_min * 30 / 60) - 180));
 
 		window.clear(Color(100, 100, 100));
 		window.draw(watch.hourArrow);
 		window.draw(watch.minArrow);
 		window.draw(watch.secArrow);
 		window.draw(watch.centre);
-		DrawPoints(window, watch, coordinatePoints);
+		DrawPoints(window, watch, coordinatePoints, text);
 
 		window.display();
 	}
@@ -104,6 +120,7 @@ void TimeIsOn(RenderWindow &window)
 
 int main()
 {
+
 	ContextSettings settings;
 	settings.antialiasingLevel = 100;
 	RenderWindow window(VideoMode(WINDOW_W, WINDOW_H), "Time", sf::Style::Default, settings);
